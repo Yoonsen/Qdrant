@@ -6,14 +6,33 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import (CollectionDescription, 
 VectorParams, 
 Distance, Filter, FieldCondition, Match, PointRequest, MatchValue)
-import sqlite3
+
+import re
+import requests
 
 client = QdrantClient(host="sprakbankdb1.lx.nb.no", port=6333)
 
 
 #collection_name = "images_1900_cos"
 
-
+def fetch_meta(url):
+    pattern = r"""([a-fA-F0-9]{32})|(URN:[^?/&\s'"]+)"""
+    matches = re.findall(pattern, url)
+    match = ""
+    if matches != []:
+        match = matches[0]
+        if match[0] == '':
+            match = match[1]
+        else:
+            match = match[0]
+    i3f = requests.get(f"https://api.nb.no/catalog/v1/iiif/{match}/manifest")
+    iiif = "{}"
+    if i3f.status_code == 200:
+        iiif = i3f.json()['metadata']
+    else:
+        print(i3f.status_code)
+    return iiif, match
+    
 def find_similar_images_by_vector(client, vector=None, collection_name=None, num=20):
     """supply a vector e.g. from vector = iv.encode_image(image) from iv module"""
     hits = client.search(
@@ -70,7 +89,7 @@ def find_similar_words(client, search_word, collection_name=None, limit=10):
         result = []
     return result
 
-def find_images_by_identifier(client, identifier,collection_name=None, key="url"):
+def find_images_by_identifier(client, identifier, collection_name=None, key="url"):
     """key takes the values "urn" (page urn) or "url" completed access"""
     # Construct the filter for the search query
     payload_filter = Filter(
