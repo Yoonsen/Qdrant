@@ -1,0 +1,4 @@
+qdrant-client
+flask
+requests
+gunicorn
